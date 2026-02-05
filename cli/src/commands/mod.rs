@@ -2,6 +2,7 @@ pub mod balance;
 pub mod invoice;
 pub mod lz_status;
 pub mod private_transfer;
+pub mod proof_of_innocence;
 pub mod quote_unwrap;
 pub mod receive_transfer;
 pub mod scan_receive_transfers;

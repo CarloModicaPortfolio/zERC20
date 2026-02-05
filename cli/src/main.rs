@@ -16,8 +16,8 @@ use client_common::{
     tokens::{HubEntry, TokenEntry, parse_tokens_config},
 };
 use commands::{
-    balance, invoice, lz_status, private_transfer, quote_unwrap, receive_transfer,
-    scan_receive_transfers,
+    balance, invoice, lz_status, private_transfer, proof_of_innocence, quote_unwrap,
+    receive_transfer, scan_receive_transfers,
     shared::{parse_address, parse_b256, parse_bytes, parse_u256},
     transfer, unwrap, wrap,
 };
@@ -122,6 +122,9 @@ enum Command {
     Unwrap(UnwrapArgs),
     /// Display LayerZero message status for the signer wallet.
     LzStatus(LzStatusArgs),
+    /// Proof of Innocence: prove transfers are not from sanctioned sources.
+    #[command(subcommand)]
+    ProofOfInnocence(ProofOfInnocenceCommand),
 }
 
 #[derive(Subcommand, Debug)]
@@ -134,6 +137,56 @@ enum InvoiceCommand {
     Receive(InvoiceReceiveArgs),
     /// Display eligible transfer events for an invoice without submitting proofs.
     Status(InvoiceReceiveArgs),
+}
+
+#[derive(Subcommand, Debug)]
+enum ProofOfInnocenceCommand {
+    /// Generate a proof of innocence for a set of transfers.
+    Generate(PoiGenerateArgs),
+    /// Verify a previously generated proof of innocence.
+    Verify(PoiVerifyArgs),
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct PoiGenerateArgs {
+    /// Recipient identifier (hex, used for burn address PoW binding).
+    #[arg(long, value_parser = parse_b256)]
+    pub recipient: B256,
+
+    /// Root of the OFAC exclusion tree (hex).
+    #[arg(long, value_parser = parse_b256)]
+    pub ofac_root: B256,
+
+    /// Path to JSON file containing transfer inputs.
+    #[arg(long, value_name = "PATH")]
+    pub transfers_file: PathBuf,
+
+    /// Path to JSON file containing exclusion proofs for each transfer.
+    #[arg(long, value_name = "PATH")]
+    pub exclusion_proofs_file: PathBuf,
+
+    /// Path to write the generated proof.
+    #[arg(long, value_name = "PATH")]
+    pub output: PathBuf,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct PoiVerifyArgs {
+    /// Path to the proof file to verify.
+    #[arg(long, value_name = "PATH")]
+    pub proof: PathBuf,
+
+    /// Recipient identifier (hex).
+    #[arg(long, value_parser = parse_b256)]
+    pub recipient: B256,
+
+    /// Expected total teleported amount (hex or decimal).
+    #[arg(long, value_parser = parse_b256)]
+    pub total_teleported: B256,
+
+    /// Root of the OFAC exclusion tree (hex).
+    #[arg(long, value_parser = parse_b256)]
+    pub ofac_root: B256,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -417,6 +470,12 @@ async fn main() -> Result<()> {
         Command::QuoteUnwrap(args) => quote_unwrap::run(args, &tokens, private_key).await?,
         Command::Unwrap(args) => unwrap::run(args, &tokens, private_key).await?,
         Command::LzStatus(args) => lz_status::run(&cli.common, args, private_key).await?,
+        Command::ProofOfInnocence(ProofOfInnocenceCommand::Generate(args)) => {
+            proof_of_innocence::generate(&cli.common, args).await?
+        }
+        Command::ProofOfInnocence(ProofOfInnocenceCommand::Verify(args)) => {
+            proof_of_innocence::verify(&cli.common, args).await?
+        }
     }
 
     Ok(())

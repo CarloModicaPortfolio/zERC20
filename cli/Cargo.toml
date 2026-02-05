@@ -24,6 +24,7 @@ serde = { workspace = true }
 rand = { workspace = true }
 num-bigint = { workspace = true }
 ark-bn254 = { workspace = true }
+ark-grumpkin = { workspace = true }
 ark-ff = { workspace = true }
 reqwest = { workspace = true }
 folding-schemes = { workspace = true }
